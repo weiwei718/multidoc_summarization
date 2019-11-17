@@ -139,8 +139,9 @@ def fix_exceptions(sentences):
 def add_sents_to_article(sentences, article, raw_article_sents, doc_indices, doc_idx):
     for orig_sent in sentences:
         tokenized_sent = process_sent(orig_sent)
-        if is_quote(tokenized_sent):
-            continue
+        # do not skip sentences without period
+        # if is_quote(tokenized_sent):
+        #     continue
         sent = ' '.join(tokenized_sent)
         article += sent + ' '
 
@@ -237,6 +238,7 @@ def write_example(article, abstracts, doc_indices, raw_article_sents, writer):
     writer.write(struct.pack('%ds' % str_len, tf_example_str))
 
 def get_custom_article_abstract(multidoc_dirname, article_dir):
+    # print(multidoc_dirname, article_dir)
     with open(os.path.join(article_dir, multidoc_dirname)) as f:
         text = f.read()
     docs = [[sent.strip() for sent in doc.strip().split('\n')] for doc in text.split('<SUMMARIES>')[0].strip().split('\n\n')]
@@ -248,6 +250,7 @@ def get_custom_article_abstract(multidoc_dirname, article_dir):
     try:
         article = article.encode('utf-8', errors='ignore').strip()
     except:
+        print(article)
         article = "".encode('utf-8', errors='ignore').strip()
         print("[WARNING] encoding error")
     if '<SUMMARIES>' in text:
