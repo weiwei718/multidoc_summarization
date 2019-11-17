@@ -245,7 +245,11 @@ def get_custom_article_abstract(multidoc_dirname, article_dir):
     raw_article_sents = []
     for doc_idx, sentences in enumerate(docs):
         article, raw_article_sents, doc_indices = add_sents_to_article(sentences, article, raw_article_sents, doc_indices, doc_idx)
-    article = article.encode('utf-8').strip()
+    try:
+        article = article.encode('utf-8', errors='ignore').strip()
+    except:
+        article = "".encode('utf-8', errors='ignore').strip()
+        print("[WARNING] encoding error")
     if '<SUMMARIES>' in text:
         abstracts_unprocessed = [[sent.strip() for sent in abs.strip().split('\n')] for abs in text.split('<SUMMARIES>')[1].strip().split('\n\n')]
         abstracts = []
