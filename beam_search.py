@@ -27,7 +27,8 @@ FLAGS = flags.FLAGS
 class Hypothesis(object):
     """Class to represent a hypothesis during beam search. Holds all the information needed for the hypothesis."""
 
-    def __init__(self, tokens, log_probs, state, attn_dists, p_gens, coverage, mmr):
+    def __init__(self, tokens, log_probs, state, attn_dists, p_gens, coverage,
+                 mmr):
         """Hypothesis constructor.
 
         Args:
@@ -82,6 +83,7 @@ class Hypothesis(object):
         # normalize log probability by number of tokens (otherwise longer sequences always have lower probability)
         return self.log_prob / len(self.tokens)
 
+
 def run_beam_search(sess, model, vocab, batch, ex_index, hps):
     """Performs beam search decoding on the given example.
 
@@ -103,10 +105,13 @@ def run_beam_search(sess, model, vocab, batch, ex_index, hps):
 
     # Sentence importance
     # tokenized_sents: beam_size * sentences in all docs * tokens in all sentences
-    enc_sentences, enc_tokens = batch.tokenized_sents[0], batch.word_ids_sents[0]
-    importances = pg_mmr_functions.get_importances(model, batch, enc_states, vocab, sess, hps)
+    enc_sentences, enc_tokens = batch.tokenized_sents[0], batch.word_ids_sents[
+        0]
+    # TODO: need modification here
+    #  add describe similarity and describe differences terms
+    importances = pg_mmr_functions.get_importances(model, batch, enc_states,
+                                                   vocab, sess, hps)
     mmr_init = importances
-
 
     # Initialize beam_size-many hyptheses
     hyps = [Hypothesis(tokens=[vocab.word2id(data.START_DECODING)],
@@ -114,50 +119,62 @@ def run_beam_search(sess, model, vocab, batch, ex_index, hps):
                        state=dec_in_state,
                        attn_dists=[],
                        p_gens=[],
-                       coverage=np.zeros([batch.enc_batch.shape[1]]),  # zero vector of length attention_length
+                       coverage=np.zeros([batch.enc_batch.shape[1]]),
+                       # zero vector of length attention_length
                        mmr=mmr_init
                        ) for hyp_idx in xrange(FLAGS.beam_size)]
     results = []  # this will contain finished hypotheses (those that have emitted the [STOP] token)
 
-
     steps = 0
     while steps < max_dec_steps and len(results) < FLAGS.beam_size:
 
-        latest_tokens = [h.latest_token for h in hyps]  # latest token produced by each hypothesis
-        latest_tokens = [t if t in xrange(vocab.size()) else vocab.word2id(data.UNKNOWN_TOKEN) for t in
+        latest_tokens = [h.latest_token for h in
+                         hyps]  # latest token produced by each hypothesis
+        latest_tokens = [t if t in xrange(vocab.size()) else vocab.word2id(
+            data.UNKNOWN_TOKEN) for t in
                          latest_tokens]  # change any in-article temporary OOV ids to [UNK] id, so that we can lookup word embeddings
 
-        states = [h.state for h in hyps]  # list of current decoder states of the hypotheses
-        prev_coverage = [h.coverage for h in hyps]  # list of coverage vectors (or None)
+        states = [h.state for h in
+                  hyps]  # list of current decoder states of the hypotheses
+        prev_coverage = [h.coverage for h in
+                         hyps]  # list of coverage vectors (or None)
 
         # Mute all source sentences except the top k sentences
         prev_mmr = [h.mmr for h in hyps]
         if FLAGS.pg_mmr:
             if FLAGS.mute_k != -1:
-                prev_mmr = [pg_mmr_functions.mute_all_except_top_k(mmr, FLAGS.mute_k) for mmr in prev_mmr]
-            prev_mmr_for_words = [pg_mmr_functions.convert_to_word_level(mmr, batch, enc_tokens) for mmr in prev_mmr]
+                prev_mmr = [
+                    pg_mmr_functions.mute_all_except_top_k(mmr, FLAGS.mute_k)
+                    for mmr in prev_mmr]
+            prev_mmr_for_words = [
+                pg_mmr_functions.convert_to_word_level(mmr, batch, enc_tokens)
+                for mmr in prev_mmr]
         else:
             prev_mmr_for_words = [None for _ in prev_mmr]
 
-
         # Run one step of the decoder to get the new info
-        (topk_ids, topk_log_probs, new_states, attn_dists, p_gens, new_coverage, pre_attn_dists) = model.decode_onestep(sess=sess,
-                                                                                                        batch=batch,
-                                                                                                        latest_tokens=latest_tokens,
-                                                                                                        enc_states=enc_states,
-                                                                                                        dec_init_states=states,
-                                                                                                        prev_coverage=prev_coverage,
-                                                                                                        mmr_score=prev_mmr_for_words)
+        (topk_ids, topk_log_probs, new_states, attn_dists, p_gens, new_coverage,
+         pre_attn_dists) = model.decode_onestep(sess=sess,
+                                                batch=batch,
+                                                latest_tokens=latest_tokens,
+                                                enc_states=enc_states,
+                                                dec_init_states=states,
+                                                prev_coverage=prev_coverage,
+                                                mmr_score=prev_mmr_for_words)
 
         # Extend each hypothesis and collect them all in all_hyps
         all_hyps = []
         num_orig_hyps = 1 if steps == 0 else len(
             hyps)  # On the first step, we only had one original hypothesis (the initial hypothesis). On subsequent steps, all original hypotheses are distinct.
         for i in xrange(num_orig_hyps):
-            h, new_state, attn_dist, p_gen, new_coverage_i = hyps[i], new_states[i], attn_dists[i], p_gens[i], \
+            h, new_state, attn_dist, p_gen, new_coverage_i = hyps[i], \
+                                                             new_states[i], \
+                                                             attn_dists[i], \
+                                                             p_gens[i], \
                                                              new_coverage[
                                                                  i]  # take the ith hypothesis and new decoder state info
-            for j in xrange(FLAGS.beam_size * 2):  # for each of the top 2*beam_size hyps:
+            for j in xrange(
+                    FLAGS.beam_size * 2):  # for each of the top 2*beam_size hyps:
                 # Extend the ith hypothesis with the jth option
                 new_hyp = h.extend(token=topk_ids[i, j],
                                    log_prob=topk_log_probs[i, j],
@@ -171,7 +188,8 @@ def run_beam_search(sess, model, vocab, batch, ex_index, hps):
         # Filter and collect any hypotheses that have produced the end token.
         hyps = []  # will contain hypotheses for the next step
         for h in sort_hyps(all_hyps):  # in order of most likely h
-            if h.latest_token == vocab.word2id(data.STOP_DECODING):  # if stop token is reached...
+            if h.latest_token == vocab.word2id(
+                    data.STOP_DECODING):  # if stop token is reached...
                 # If this hypothesis is sufficiently long, put in results. Otherwise discard.
                 if steps >= FLAGS.min_dec_steps:
                     results.append(h)
@@ -184,13 +202,18 @@ def run_beam_search(sess, model, vocab, batch, ex_index, hps):
         # Update the MMR scores when a sentence is completed
         if FLAGS.pg_mmr:
             for hyp_idx, hyp in enumerate(hyps):
-                if hyp.latest_token == vocab.word2id(data.PERIOD):     # if in regular mode, and the hyp ends in a period
-                    pg_mmr_functions.update_similarity_and_mmr(hyp, importances, batch, enc_tokens, vocab)
+                if hyp.latest_token == vocab.word2id(
+                        data.PERIOD):  # if in regular mode, and the hyp ends in a period
+                    pg_mmr_functions.update_similarity_and_mmr(hyp, importances,
+                                                               batch,
+                                                               enc_tokens,
+                                                               vocab)
         steps += 1
 
     # At this point, either we've got beam_size results, or we've reached maximum decoder steps
 
-    if len(results) == 0:  # if we don't have any complete results, add all current hypotheses (incomplete summaries) to results
+    if len(
+            results) == 0:  # if we don't have any complete results, add all current hypotheses (incomplete summaries) to results
         results = hyps
 
     # Sort hypotheses by average log probability
@@ -200,8 +223,8 @@ def run_beam_search(sess, model, vocab, batch, ex_index, hps):
     # Save plots of the distributions (importance, similarity, mmr)
     if FLAGS.plot_distributions and FLAGS.pg_mmr:
         pg_mmr_functions.save_distribution_plots(importances, enc_sentences,
-                                   enc_tokens, best_hyp, batch, vocab, ex_index)
-
+                                                 enc_tokens, best_hyp, batch,
+                                                 vocab, ex_index)
 
     # Return the hypothesis with highest average log prob
     return best_hyp
@@ -210,5 +233,3 @@ def run_beam_search(sess, model, vocab, batch, ex_index, hps):
 def sort_hyps(hyps):
     """Return a list of Hypothesis objects, sorted by descending average log probability"""
     return sorted(hyps, key=lambda h: h.avg_log_prob, reverse=True)
-
-
