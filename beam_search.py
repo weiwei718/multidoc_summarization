@@ -204,6 +204,7 @@ def run_beam_search(sess, model, vocab, batch, ex_index, hps):
             for hyp_idx, hyp in enumerate(hyps):
                 if hyp.latest_token == vocab.word2id(
                         data.PERIOD):  # if in regular mode, and the hyp ends in a period
+                    # TODO: need modification for describe similarities and differences
                     pg_mmr_functions.update_similarity_and_mmr(hyp, importances,
                                                                batch,
                                                                enc_tokens,
