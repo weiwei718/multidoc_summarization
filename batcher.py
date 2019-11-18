@@ -94,7 +94,7 @@ class Example(object):
         self.original_abstract_sents = abstract_sentences
         self.all_original_abstract_sents = all_abstract_sentences
 
-        self.doc_indices = doc_indices
+        self.doc_indices = doc_indices # doc_id in multidoc correspond to each word
 
 
     def get_dec_inp_targ_seqs(self, sequence, max_len, start_id, stop_id):

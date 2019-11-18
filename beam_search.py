@@ -102,6 +102,7 @@ def run_beam_search(sess, model, vocab, batch, ex_index, hps):
     # enc_states has shape [batch_size, <=max_enc_steps, 2*hidden_dim].
 
     # Sentence importance
+    # tokenized_sents: beam_size * sentences in all docs * tokens in all sentences
     enc_sentences, enc_tokens = batch.tokenized_sents[0], batch.word_ids_sents[0]
     importances = pg_mmr_functions.get_importances(model, batch, enc_states, vocab, sess, hps)
     mmr_init = importances
