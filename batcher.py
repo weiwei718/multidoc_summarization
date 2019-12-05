@@ -245,7 +245,7 @@ class Batch(object):
         self.original_abstracts = [ex.original_abstract for ex in example_list] # list of lists
         self.original_abstracts_sents = [ex.original_abstract_sents for ex in example_list] # list of list of lists
         self.all_original_abstracts_sents = [ex.all_original_abstract_sents for ex in example_list] # list of list of list of lists
-
+        # self.doc_indices_sent
 
 class Batcher(object):
     """A class to generate minibatches of data. Buckets examples together based on length of the encoder sequence."""

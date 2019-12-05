@@ -120,6 +120,64 @@ def get_tfidf_importances(raw_article_sents):
     similarity_matrix = cosine_similarity(sent_reps, cluster_rep)
     return np.squeeze(similarity_matrix)
 
+def get_describe_similarity(raw_article_sents, tokenized_sentences, doc_indices):
+    tfidf_model_path = os.path.join(FLAGS.actual_log_root, 'tfidf_vectorizer',
+                                    FLAGS.dataset_name + '.dill')
+
+    while True:
+        try:
+            with open(tfidf_model_path, 'rb') as f:
+                tfidf_vectorizer = dill.load(f)
+            break
+        except (EOFError, KeyError):
+            time.sleep(random.randint(3, 6))
+            continue
+    sent_reps = tfidf_vectorizer.transform(raw_article_sents)
+
+    doc_num = int(doc_indices[-1] + 1)
+    doc_rep = np.zeros((doc_num, sent_reps.shape[1]))
+    word_ind, sent_ind, doc_ind = 0, 0, 0
+
+    for i, sent in enumerate(tokenized_sentences):
+        word_ind = len(sent) + word_ind
+        if word_ind >= len(doc_indices) or doc_indices[word_ind] != doc_ind:
+            doc_rep[doc_ind] = np.mean(sent_reps[sent_ind: i+1], axis=0)
+            sent_ind = i+1
+            doc_ind += 1
+
+    similarity_matrix = cosine_similarity(sent_reps, doc_rep)
+    return np.mean(similarity_matrix, axis=1)
+
+def get_describe_difference(raw_article_sents, tokenized_sentences, doc_indices):
+    tfidf_model_path = os.path.join(FLAGS.actual_log_root, 'tfidf_vectorizer',
+                                    FLAGS.dataset_name + '.dill')
+
+    while True:
+        try:
+            with open(tfidf_model_path, 'rb') as f:
+                tfidf_vectorizer = dill.load(f)
+            break
+        except (EOFError, KeyError):
+            time.sleep(random.randint(3, 6))
+            continue
+    sent_reps = tfidf_vectorizer.transform(raw_article_sents)
+
+    doc_num = int(doc_indices[-1] + 1)
+    doc_rep = np.zeros((doc_num, sent_reps.shape[1]))
+    word_ind, sent_ind, doc_ind = 0, 0, 0
+
+    for i, sent in enumerate(tokenized_sentences):
+        word_ind = len(sent) + word_ind
+        if word_ind >= len(doc_indices) or doc_indices[word_ind] != doc_ind:
+            doc_rep[doc_ind] = np.mean(sent_reps[sent_ind: i+1], axis=0)
+            sent_ind = i+1
+            doc_ind += 1
+
+    similarity_matrix = cosine_similarity(sent_reps, doc_rep)
+    denominator = np.sum(similarity_matrix[:,1:], axis=1)
+    numerator = similarity_matrix[:, 0]
+    epsilon = 1e-6
+    return numerator/(denominator+epsilon)
 
 def get_importances(model, batch, enc_states, vocab, sess, hps):
     if FLAGS.pg_mmr:
@@ -145,6 +203,18 @@ def get_importances(model, batch, enc_states, vocab, sess, hps):
                                                   sent_representations_separate)
         elif FLAGS.importance_fn == 'tfidf':
             importances_hat = get_tfidf_importances(batch.raw_article_sents[0])
+        importances = util.special_squash(importances_hat)
+    elif FLAGS.pg_mmr_sim:
+        importances_hat = FLAGS.alpha_val * get_tfidf_importances(batch.raw_article_sents[0]) + \
+                          (1 - FLAGS.alpha_val) * get_describe_similarity(batch.raw_article_sents[0],
+                                                                          batch.tokenized_sents[0],
+                                                                          batch.doc_indices[0])
+        importances = util.special_squash(importances_hat)
+    elif FLAGS.pg_mmr_diff:
+        importances_hat = FLAGS.alpha_val * get_tfidf_importances(batch.raw_article_sents[0]) + \
+                          (1 - FLAGS.alpha_val) * get_describe_difference(batch.raw_article_sents[0],
+                                                                          batch.tokenized_sents[0],
+                                                                          batch.doc_indices[0])
         importances = util.special_squash(importances_hat)
     else:
         importances = None

@@ -106,10 +106,14 @@ flags.DEFINE_boolean('debug', False,
 
 # PG-MMR settings
 flags.DEFINE_boolean('pg_mmr', False, 'If true, use the PG-MMR model.')
+flags.DEFINE_boolean('pg_mmr_sim', False, 'If true, use the PG-MMR describe similarity model.')
+flags.DEFINE_boolean('pg_mmr_diff', False, 'If true, use the PG-MMR describe differences model.')
 flags.DEFINE_string('importance_fn', 'tfidf',
                     'Which model to use for calculating importance. Must be one of {svr, tfidf, oracle}.')
 flags.DEFINE_float('lambda_val', 0.6,
                    'Lambda factor to reduce similarity amount to subtract from importance. Set to 0.5 to make importance and similarity have equal weight.')
+flags.DEFINE_float('alpha_val', 0.3,
+                    'Alpha factor to balance importance score and similarity/difference score')
 flags.DEFINE_integer('mute_k', 7,
                      'Pick top k sentences to select and mute all others. Set to -1 to turn off.')
 flags.DEFINE_boolean('retain_mmr_values', False, 'Only used if using mute mode. If true, then the mmr being\
