@@ -212,7 +212,7 @@ def main(unused_argv):
             hps_dict[key] = val.value  # add it to the dict
     hps = namedtuple("HParams", hps_dict.keys())(**hps_dict)
 
-    if FLAGS.pg_mmr:
+    if FLAGS.pg_mmr or FLAGS.pg_mmr_sim or FLAGS.pg_mmr_diff:
 
         # Fit the TFIDF vectorizer if not already fitted
         if FLAGS.importance_fn == 'tfidf':

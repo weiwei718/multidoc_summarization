@@ -176,7 +176,7 @@ def get_describe_difference(raw_article_sents, tokenized_sentences, doc_indices)
     similarity_matrix = cosine_similarity(sent_reps, doc_rep)
     denominator = np.sum(similarity_matrix[:,1:], axis=1)
     numerator = similarity_matrix[:, 0]
-    epsilon = 1e-6
+    epsilon = 1e-2
     return numerator/(denominator+epsilon)
 
 def get_importances(model, batch, enc_states, vocab, sess, hps):

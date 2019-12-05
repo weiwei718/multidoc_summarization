@@ -141,7 +141,7 @@ def run_beam_search(sess, model, vocab, batch, ex_index, hps):
 
         # Mute all source sentences except the top k sentences
         prev_mmr = [h.mmr for h in hyps]
-        if FLAGS.pg_mmr:
+        if FLAGS.pg_mmr or FLAGS.pg_mmr_sim or FLAGS.pg_mmr_diff:
             if FLAGS.mute_k != -1:
                 prev_mmr = [
                     pg_mmr_functions.mute_all_except_top_k(mmr, FLAGS.mute_k)
@@ -200,7 +200,7 @@ def run_beam_search(sess, model, vocab, batch, ex_index, hps):
                 break
 
         # Update the MMR scores when a sentence is completed
-        if FLAGS.pg_mmr:
+        if FLAGS.pg_mmr or FLAGS.pg_mmr_sim or FLAGS.pg_mmr_diff:
             for hyp_idx, hyp in enumerate(hyps):
                 if hyp.latest_token == vocab.word2id(
                         data.PERIOD):  # if in regular mode, and the hyp ends in a period
@@ -222,7 +222,7 @@ def run_beam_search(sess, model, vocab, batch, ex_index, hps):
     best_hyp = hyps_sorted[0]
 
     # Save plots of the distributions (importance, similarity, mmr)
-    if FLAGS.plot_distributions and FLAGS.pg_mmr:
+    if FLAGS.plot_distributions and (FLAGS.pg_mmr or FLAGS.pg_mmr_sim or FLAGS.pg_mmr_diff):
         pg_mmr_functions.save_distribution_plots(importances, enc_sentences,
                                                  enc_tokens, best_hyp, batch,
                                                  vocab, ex_index)
